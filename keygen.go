@@ -66,15 +66,14 @@ func (s SSHKeyPair) publicKeyPath() string {
 	return filepath.Join(s.KeyDir, s.Filename+".pub")
 }
 
-// NewSSHKeyPair generates an SSHKeyPair, which contains a pair of SSH keys.
-// The keys are written to disk.
-func NewSSHKeyPair(path string, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
+// New generates an SSHKeyPair, which contains a pair of SSH keys.
+func New(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
 	var err error
 	s := &SSHKeyPair{
 		KeyDir:   path,
 		Filename: fmt.Sprintf("%s_%s", name, keyType),
 	}
-	if s.KeyPairExist() {
+	if s.IsKeyPairExists() {
 		pubData, err := ioutil.ReadFile(s.publicKeyPath())
 		if err != nil {
 			return nil, err
@@ -97,6 +96,20 @@ func NewSSHKeyPair(path string, name string, passphrase []byte, keyType string) 
 	}
 	if err != nil {
 		return nil, err
+	}
+	return s, nil
+}
+
+// New generates an SSHKeyPair and writes it to disk if not exist.
+func NewWithWrite(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
+	s, err := New(path, name, passphrase, keyType)
+	if err != nil {
+		return nil, err
+	}
+	if !s.IsKeyPairExists() {
+		if err = s.WriteKeys(); err != nil {
+			return nil, err
+		}
 	}
 	return s, nil
 }
@@ -242,7 +255,7 @@ func (s *SSHKeyPair) WriteKeys() error {
 	return nil
 }
 
-func (s *SSHKeyPair) KeyPairExist() bool {
+func (s *SSHKeyPair) IsKeyPairExists() bool {
 	return fileExists(s.privateKeyPath()) && fileExists(s.publicKeyPath())
 }
 
