@@ -6,7 +6,21 @@ import (
 	"testing"
 )
 
-func TestSSHKeyGeneration(t *testing.T) {
+func TestNewSSHKeyPair(t *testing.T) {
+	dir := t.TempDir()
+	k, err := NewSSHKeyPair(dir, "test", []byte(""), "rsa")
+	if err != nil {
+		t.Errorf("error creating SSH key pair: %v", err)
+	}
+	if !k.KeyPairExist() {
+		err = k.WriteKeys()
+		if err != nil {
+			t.Errorf("error writing SSH key pair: %v", err)
+		}
+	}
+}
+
+func TestGenerateEd25519Keys(t *testing.T) {
 	// Create temp directory for keys
 	dir := t.TempDir()
 
