@@ -70,18 +70,17 @@ func (s SSHKeyPair) publicKeyPath() string {
 // The keys are written to disk.
 func NewSSHKeyPair(path string, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
 	var err error
-	s := &SSHKeyPair{}
-	pubPath := fmt.Sprintf("%s/%s_%s.pub", path, name, keyType)
-	privPath := fmt.Sprintf("%s/%s_%s", path, name, keyType)
-	pubExists := fileExists(pubPath)
-	privExists := fileExists(privPath)
-	if pubExists && privExists {
-		pubData, err := ioutil.ReadFile(pubPath)
+	s := &SSHKeyPair{
+		KeyDir:   path,
+		Filename: fmt.Sprintf("%s_%s", name, keyType),
+	}
+	if s.KeyPairExist() {
+		pubData, err := ioutil.ReadFile(s.publicKeyPath())
 		if err != nil {
 			return nil, err
 		}
 		s.PublicKey = pubData
-		privData, err := ioutil.ReadFile(privPath)
+		privData, err := ioutil.ReadFile(s.privateKeyPath())
 		if err != nil {
 			return nil, err
 		}
@@ -90,21 +89,20 @@ func NewSSHKeyPair(path string, name string, passphrase []byte, keyType string) 
 	}
 	switch keyType {
 	case "ed25519":
-		err = s.GenerateEd25519Keys(path, name)
+		err = s.generateEd25519Keys()
+	case "rsa":
+		err = s.generateRSAKeys(rsaDefaultBits, passphrase)
 	default:
-		err = s.GenerateRSAKeys(path, name, rsaDefaultBits, passphrase)
+		return nil, fmt.Errorf("unsupported key type %s", keyType)
 	}
 	if err != nil {
-		return nil, err
-	}
-	if err := s.WriteKeys(); err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-// GenerateEd25519Keys creates a pair of EdD25519 keys for SSH auth.
-func (s *SSHKeyPair) GenerateEd25519Keys(path string, name string) error {
+// generateEd25519Keys creates a pair of EdD25519 keys for SSH auth.
+func (s *SSHKeyPair) generateEd25519Keys() error {
 	// Generate keys
 	pubKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -128,13 +126,11 @@ func (s *SSHKeyPair) GenerateEd25519Keys(path string, name string) error {
 
 	s.PrivateKeyPEM = pemBlock
 	s.PublicKey = pubKeyWithMemo(serializedPublicKey)
-	s.KeyDir = path
-	s.Filename = fmt.Sprintf("%s_ed25519", name)
 	return nil
 }
 
-// GenerateRSAKeys creates a pair for RSA keys for SSH auth.
-func (s *SSHKeyPair) GenerateRSAKeys(path string, name string, bitSize int, passphrase []byte) error {
+// generateRSAKeys creates a pair for RSA keys for SSH auth.
+func (s *SSHKeyPair) generateRSAKeys(bitSize int, passphrase []byte) error {
 	// Generate private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
 	if err != nil {
@@ -178,17 +174,15 @@ func (s *SSHKeyPair) GenerateRSAKeys(path string, name string, bitSize int, pass
 
 	s.PrivateKeyPEM = pemBlock
 	s.PublicKey = pubKeyWithMemo(serializedPubKey)
-	s.KeyDir = path
-	s.Filename = fmt.Sprintf("%s_rsa", name)
 	return nil
 }
 
-// PrepFilesystem makes sure the state of the filesystem is as it needs to be
+// prepFilesystem makes sure the state of the filesystem is as it needs to be
 // in order to write our keys to disk. It will create and/or set permissions on
 // the SSH directory we're going to write our keys to (for example, ~/.ssh) as
 // well as make sure that no files exist at the location in which we're going
 // to write out keys.
-func (s *SSHKeyPair) PrepFilesystem() error {
+func (s *SSHKeyPair) prepFilesystem() error {
 	var err error
 
 	s.KeyDir, err = homedir.Expand(s.KeyDir)
@@ -234,7 +228,7 @@ func (s *SSHKeyPair) WriteKeys() error {
 		return ErrMissingSSHKeys
 	}
 
-	if err := s.PrepFilesystem(); err != nil {
+	if err := s.prepFilesystem(); err != nil {
 		return err
 	}
 
@@ -246,6 +240,10 @@ func (s *SSHKeyPair) WriteKeys() error {
 	}
 
 	return nil
+}
+
+func (s *SSHKeyPair) KeyPairExist() bool {
+	return fileExists(s.privateKeyPath()) && fileExists(s.publicKeyPath())
 }
 
 func writeKeyToFile(keyBytes []byte, path string) error {
