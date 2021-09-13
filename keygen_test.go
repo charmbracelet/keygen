@@ -7,13 +7,16 @@ import (
 )
 
 func TestSSHKeyGeneration(t *testing.T) {
-	k := &SSHKeyPair{}
-
 	// Create temp directory for keys
 	dir := t.TempDir()
 
+	k := &SSHKeyPair{
+		KeyDir:   dir,
+		Filename: "test",
+	}
+
 	t.Run("test generate SSH keys", func(t *testing.T) {
-		err := k.GenerateEd25519Keys(dir, "test")
+		err := k.generateEd25519Keys()
 		if err != nil {
 			t.Errorf("error creating SSH key pair: %v", err)
 		}
@@ -30,7 +33,7 @@ func TestSSHKeyGeneration(t *testing.T) {
 
 	t.Run("test write SSH keys", func(t *testing.T) {
 		k.KeyDir = filepath.Join(dir, "ssh1")
-		if err := k.PrepFilesystem(); err != nil {
+		if err := k.prepFilesystem(); err != nil {
 			t.Errorf("filesystem error: %v\n", err)
 		}
 		if err := k.WriteKeys(); err != nil {
@@ -43,7 +46,7 @@ func TestSSHKeyGeneration(t *testing.T) {
 
 	t.Run("test not overwriting existing keys", func(t *testing.T) {
 		k.KeyDir = filepath.Join(dir, "ssh2")
-		if err := k.PrepFilesystem(); err != nil {
+		if err := k.prepFilesystem(); err != nil {
 			t.Errorf("filesystem error: %v\n", err)
 		}
 
