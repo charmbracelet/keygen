@@ -42,7 +42,7 @@ type FilesystemErr struct {
 	Err error
 }
 
-// Error returns a human-readable string for the erorr. It implements the error
+// Error returns a human-readable string for the error. It implements the error
 // interface.
 func (e FilesystemErr) Error() string {
 	return e.Err.Error()
@@ -109,7 +109,7 @@ func New(path, name string, passphrase []byte, keyType KeyType) (*SSHKeyPair, er
 	return s, nil
 }
 
-// New generates an SSHKeyPair and writes it to disk if not exist.
+// NewWithWrite generates an SSHKeyPair and writes it to disk if not exist.
 func NewWithWrite(path, name string, passphrase []byte, keyType KeyType) (*SSHKeyPair, error) {
 	s, err := New(path, name, passphrase, keyType)
 	if err != nil {
@@ -264,6 +264,7 @@ func (s *SSHKeyPair) WriteKeys() error {
 	return nil
 }
 
+// IsKeyPairExists checks if the SSH key pair exists on disk.
 func (s *SSHKeyPair) IsKeyPairExists() bool {
 	return fileExists(s.privateKeyPath()) && fileExists(s.publicKeyPath())
 }
