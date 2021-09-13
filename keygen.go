@@ -20,6 +20,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// KeyType represents a type of SSH key.
+type KeyType string
+
+// Supported key types.
+const (
+	RSA     KeyType = "rsa"
+	Ed25519 KeyType = "ed25519"
+)
+
 const rsaDefaultBits = 4096
 
 // ErrMissingSSHKeys indicates we're missing some keys that we expected to
@@ -67,7 +76,7 @@ func (s SSHKeyPair) publicKeyPath() string {
 }
 
 // New generates an SSHKeyPair, which contains a pair of SSH keys.
-func New(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
+func New(path, name string, passphrase []byte, keyType KeyType) (*SSHKeyPair, error) {
 	var err error
 	s := &SSHKeyPair{
 		KeyDir:   path,
@@ -87,9 +96,9 @@ func New(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, err
 		return s, nil
 	}
 	switch keyType {
-	case "ed25519":
+	case Ed25519:
 		err = s.generateEd25519Keys()
-	case "rsa":
+	case RSA:
 		err = s.generateRSAKeys(rsaDefaultBits, passphrase)
 	default:
 		return nil, fmt.Errorf("unsupported key type %s", keyType)
@@ -101,7 +110,7 @@ func New(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, err
 }
 
 // New generates an SSHKeyPair and writes it to disk if not exist.
-func NewWithWrite(path, name string, passphrase []byte, keyType string) (*SSHKeyPair, error) {
+func NewWithWrite(path, name string, passphrase []byte, keyType KeyType) (*SSHKeyPair, error) {
 	s, err := New(path, name, passphrase, keyType)
 	if err != nil {
 		return nil, err
