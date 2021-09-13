@@ -10,17 +10,10 @@ An SSH key pair generator. Supports generating RSA and Ed25519 keys.
 ## Example
 
 ```go
-k, err := NewSSHKeyPair(".ssh", "my_awesome_key", []byte(""), key.Ed25519)
+k, err := NewWithWrite(".ssh", "my_awesome_key", []byte(""), key.Ed25519)
 if err != nil {
 	fmt.Printf("error creating SSH key pair: %v", err)
 	os.Exit(1)
-}
-if !k.KeyPairExist() {
-	err = k.WriteKeys()
-	if err != nil {
-		fmt.Printf("error writing SSH key pair: %v", err)
-		os.Exit(1)
-	}
 }
 ```
 
