@@ -165,13 +165,13 @@ func (s *SSHKeyPair) generateECDSAKeys() error {
 	}
 
 	// Encode PEM
-	x509Encoded, err := x509.MarshalECPrivateKey(privateKey)
+	bts, err := x509.MarshalECPrivateKey(privateKey)
 	if err != nil {
 		return err
 	}
 	pemBlock := pem.EncodeToMemory(&pem.Block{
 		Type:  "OPENSSH PRIVATE KEY",
-		Bytes: x509Encoded,
+		Bytes: bts,
 	})
 
 	// Prepare public key
