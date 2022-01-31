@@ -3,7 +3,9 @@ package keygen
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -27,6 +29,7 @@ type KeyType string
 const (
 	RSA     KeyType = "rsa"
 	Ed25519 KeyType = "ed25519"
+	ECDSA   KeyType = "ecdsa"
 )
 
 const rsaDefaultBits = 4096
@@ -100,6 +103,8 @@ func New(path, name string, passphrase []byte, keyType KeyType) (*SSHKeyPair, er
 		err = s.generateEd25519Keys()
 	case RSA:
 		err = s.generateRSAKeys(rsaDefaultBits, passphrase)
+	case ECDSA:
+		err = s.generateECDSAKeys()
 	default:
 		return nil, fmt.Errorf("unsupported key type %s", keyType)
 	}
@@ -139,6 +144,38 @@ func (s *SSHKeyPair) generateEd25519Keys() error {
 
 	// Prepare public key
 	publicKey, err := ssh.NewPublicKey(pubKey)
+	if err != nil {
+		return err
+	}
+
+	// serialize for public key file on disk
+	serializedPublicKey := ssh.MarshalAuthorizedKey(publicKey)
+
+	s.PrivateKeyPEM = pemBlock
+	s.PublicKey = pubKeyWithMemo(serializedPublicKey)
+	return nil
+}
+
+// generateEd25519Keys creates a pair of EdD25519 keys for SSH auth.
+func (s *SSHKeyPair) generateECDSAKeys() error {
+	// Generate keys
+	privateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		return err
+	}
+
+	// Encode PEM
+	x509Encoded, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+	pemBlock := pem.EncodeToMemory(&pem.Block{
+		Type:  "OPENSSH PRIVATE KEY",
+		Bytes: x509Encoded,
+	})
+
+	// Prepare public key
+	publicKey, err := ssh.NewPublicKey(privateKey.Public())
 	if err != nil {
 		return err
 	}
