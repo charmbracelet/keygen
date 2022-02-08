@@ -244,28 +244,30 @@ func (s *SSHKeyPair) generateRSAKeys(bitSize int, passphrase []byte) error {
 func (s *SSHKeyPair) prepFilesystem() error {
 	var err error
 
-	s.KeyDir, err = homedir.Expand(s.KeyDir)
-	if err != nil {
-		return err
-	}
+	if s.KeyDir != "" {
+		s.KeyDir, err = homedir.Expand(s.KeyDir)
+		if err != nil {
+			return err
+		}
 
-	info, err := os.Stat(s.KeyDir)
-	if os.IsNotExist(err) {
-		// Directory doesn't exist: create it
-		return os.MkdirAll(s.KeyDir, 0700)
-	}
-	if err != nil {
-		// There was another error statting the directory; something is awry
-		return FilesystemErr{Err: err}
-	}
-	if !info.IsDir() {
-		// It exists but it's not a directory
-		return FilesystemErr{Err: fmt.Errorf("%s is not a directory", s.KeyDir)}
-	}
-	if info.Mode().Perm() != 0700 {
-		// Permissions are wrong: fix 'em
-		if err := os.Chmod(s.KeyDir, 0700); err != nil {
+		info, err := os.Stat(s.KeyDir)
+		if os.IsNotExist(err) {
+			// Directory doesn't exist: create it
+			return os.MkdirAll(s.KeyDir, 0700)
+		}
+		if err != nil {
+			// There was another error statting the directory; something is awry
 			return FilesystemErr{Err: err}
+		}
+		if !info.IsDir() {
+			// It exists but it's not a directory
+			return FilesystemErr{Err: fmt.Errorf("%s is not a directory", s.KeyDir)}
+		}
+		if info.Mode().Perm() != 0700 {
+			// Permissions are wrong: fix 'em
+			if err := os.Chmod(s.KeyDir, 0700); err != nil {
+				return FilesystemErr{Err: err}
+			}
 		}
 	}
 
