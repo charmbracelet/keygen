@@ -170,7 +170,7 @@ func (s *SSHKeyPair) generateECDSAKeys() error {
 		return err
 	}
 	pemBlock := pem.EncodeToMemory(&pem.Block{
-		Type:  "OPENSSH PRIVATE KEY",
+		Type:  "EC PRIVATE KEY",
 		Bytes: bts,
 	})
 
