@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/charmbracelet/keygen/workflows/build/badge.svg)](https://github.com/charmbracelet/keygen/actions)
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/keygen)](https://goreportcard.com/report/charmbracelet/keygen)
 
-An SSH key pair generator. Supports generating RSA and Ed25519 keys.
+An SSH key pair generator. Supports generating RSA, ECDSA, and Ed25519 keys.
 
 ## Example
 
