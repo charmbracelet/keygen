@@ -5,12 +5,14 @@
 [![Build Status](https://github.com/charmbracelet/keygen/workflows/build/badge.svg)](https://github.com/charmbracelet/keygen/actions)
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/keygen)](https://goreportcard.com/report/charmbracelet/keygen)
 
-An SSH key pair generator. Supports generating RSA, ECDSA, and Ed25519 keys.
+An SSH key pair generator with password protected keys support. Supports generating RSA, ECDSA, and Ed25519 keys.
 
 ## Example
 
 ```go
-k, err := NewWithWrite(".ssh", "my_awesome_key", []byte(""), key.Ed25519)
+filepath := filepath.Join(".ssh",  "my_awesome_key")
+passphrase := []byte("awesome_secret")
+k, err := NewWithWrite(filepath, passphrase, key.Ed25519)
 if err != nil {
 	fmt.Printf("error creating SSH key pair: %v", err)
 	os.Exit(1)
