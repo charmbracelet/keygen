@@ -17,6 +17,7 @@ if err != nil {
 	fmt.Printf("error creating SSH key pair: %v", err)
 	os.Exit(1)
 }
+fmt.Printf("Your authorized key: %s\n", string(k.PublicKey()))
 ```
 
 ## License
