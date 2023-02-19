@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/caarlos0/sshmarshal v0.1.0
 	github.com/mitchellh/go-homedir v1.1.0
-	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70
+	golang.org/x/crypto v0.6.0
 )
 
-require golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
+require golang.org/x/sys v0.5.0 // indirect
