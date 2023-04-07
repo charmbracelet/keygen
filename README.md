@@ -10,29 +10,27 @@ An SSH key pair generator with password protected keys support. Supports generat
 ## Example
 
 ```go
-filepath := filepath.Join(".ssh",  "my_awesome_key")
-passphrase := []byte("awesome_secret")
-k, err := NewWithWrite(filepath, passphrase, key.Ed25519)
+kp, err := keygen.New("awesome", keygen.WithPassphrase("awesome_secret"),
+	keygen.WithKeyType(keygen.Ed25519))
 if err != nil {
-	fmt.Printf("error creating SSH key pair: %v", err)
-	os.Exit(1)
+	log.Fatalf("error creating SSH key pair: %v", err)
 }
-fmt.Printf("Your authorized key: %s\n", string(k.PublicKey()))
+fmt.Printf("Your authorized key: %s\n", kp.AuthorizedKey())
 ```
 
 ## Feedback
 
 We’d love to hear your thoughts on this project. Feel free to drop us a note!
 
-* [Twitter](https://twitter.com/charmcli)
-* [The Fediverse](https://mastodon.social/@charmcli)
-* [Discord](https://charm.sh/chat)
+- [Twitter](https://twitter.com/charmcli)
+- [The Fediverse](https://mastodon.social/@charmcli)
+- [Discord](https://charm.sh/chat)
 
 ## License
 
 [MIT](https://github.com/charmbracelet/keygen/raw/master/LICENSE)
 
-***
+---
 
 Part of [Charm](https://charm.sh).
 
