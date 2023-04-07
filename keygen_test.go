@@ -1,8 +1,8 @@
 package keygen
 
 import (
+	"bytes"
 	"crypto/elliptic"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,10 +10,12 @@ import (
 )
 
 func TestNewSSHKeyPair(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "test")
-	_, err := NewWithWrite(p, []byte(""), RSA)
+	kp, err := New("")
 	if err != nil {
 		t.Errorf("error creating SSH key pair: %v", err)
+	}
+	if kp.keyType != Ed25519 {
+		t.Errorf("expected default key type to be Ed25519, got %s", kp.keyType)
 	}
 }
 
@@ -35,11 +37,11 @@ func TestGenerateEd25519Keys(t *testing.T) {
 
 		// TODO: is there a good way to validate these? Lengths seem to vary a bit,
 		// so far now we're just asserting that the keys indeed exist.
-		if len(k.PrivateKeyPEM()) == 0 {
+		if len(k.RawPrivateKey()) == 0 {
 			t.Error("error creating SSH private key PEM; key is 0 bytes")
 		}
-		if len(k.PublicKey()) == 0 {
-			t.Error("error creating SSH public key; key is 0 bytes")
+		if len(k.AuthorizedKey()) == 0 {
+			t.Error("error creating SSH authorized key; key is 0 bytes")
 		}
 	})
 
@@ -101,10 +103,10 @@ func TestGenerateECDSAKeys(t *testing.T) {
 
 		// TODO: is there a good way to validate these? Lengths seem to vary a bit,
 		// so far now we're just asserting that the keys indeed exist.
-		if len(k.PrivateKeyPEM()) == 0 {
+		if len(k.RawPrivateKey()) == 0 {
 			t.Error("error creating SSH private key PEM; key is 0 bytes")
 		}
-		if len(k.PublicKey()) == 0 {
+		if len(k.AuthorizedKey()) == 0 {
 			t.Error("error creating SSH public key; key is 0 bytes")
 		}
 	})
@@ -174,11 +176,11 @@ func createEmptyFile(t *testing.T, path string) (ok bool) {
 func TestGeneratePublicKeyWithEmptyDir(t *testing.T) {
 	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
 		func(t *testing.T) {
-			k, err := NewWithWrite("testkey", nil, keyType)
+			fn := "testkey"
+			k, err := New(fn, WithKeyType(keyType), WithWrite())
 			if err != nil {
 				t.Fatalf("error creating SSH key pair: %v", err)
 			}
-			fn := fmt.Sprintf("testkey_%s", keyType)
 			f, err := os.Open(fn + ".pub")
 			if err != nil {
 				t.Fatalf("error opening SSH key file: %v", err)
@@ -190,7 +192,7 @@ func TestGeneratePublicKeyWithEmptyDir(t *testing.T) {
 			}
 			defer os.Remove(fn)
 			defer os.Remove(fn + ".pub")
-			if string(k.PublicKey()) != string(fc) {
+			if bytes.Equal(k.RawAuthorizedKey(), fc) {
 				t.Errorf("error key mismatch\nprivate key:\n%s\n\nactual file:\n%s", k.PrivateKey(), string(fc))
 			}
 		}(t)
@@ -201,11 +203,11 @@ func TestGenerateKeyWithPassphrase(t *testing.T) {
 	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
 		ph := "testpass"
 		func(t *testing.T) {
-			_, err := NewWithWrite("testph", []byte(ph), keyType)
+			_, err := New("testph", WithKeyType(keyType), WithPassphrase(ph), WithWrite())
 			if err != nil {
 				t.Fatalf("error creating SSH key pair: %v", err)
 			}
-			fn := fmt.Sprintf("testph_%s", keyType)
+			fn := "testph"
 			f, err := os.Open(fn)
 			if err != nil {
 				t.Fatalf("error opening SSH key file: %v", err)
@@ -217,11 +219,11 @@ func TestGenerateKeyWithPassphrase(t *testing.T) {
 			}
 			defer os.Remove(fn)
 			defer os.Remove(fn + ".pub")
-			k, err := New("testph", []byte(ph), keyType)
+			k, err := New("testph", WithKeyType(keyType), WithPassphrase(ph))
 			if err != nil {
 				t.Fatalf("error reading SSH key pair: %v", err)
 			}
-			if string(k.PrivateKeyPEM()) == string(fc) {
+			if bytes.Equal(k.RawPrivateKey(), fc) {
 				t.Errorf("encrypted private key matches file contents")
 			}
 		}(t)
@@ -231,7 +233,7 @@ func TestGenerateKeyWithPassphrase(t *testing.T) {
 func TestReadingKeyWithPassphrase(t *testing.T) {
 	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
 		kp := filepath.Join("testdata", "test")
-		_, err := New(kp, []byte("test"), keyType)
+		_, err := New(kp, WithKeyType(keyType), WithPassphrase("test"))
 		if err != nil {
 			t.Fatalf("error reading SSH key pair: %v", err)
 		}

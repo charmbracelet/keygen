@@ -2,7 +2,6 @@
 package keygen
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -16,9 +15,9 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/caarlos0/sshmarshal"
-	"github.com/mitchellh/go-homedir"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -32,6 +31,11 @@ const (
 	ECDSA   KeyType = "ecdsa"
 )
 
+// String implements the Stringer interface for KeyType.
+func (k KeyType) String() string {
+	return string(k)
+}
+
 const rsaDefaultBits = 4096
 
 // ErrMissingSSHKeys indicates we're missing some keys that we expected to
@@ -43,7 +47,7 @@ type ErrUnsupportedKeyType struct {
 	keyType string
 }
 
-// Error implements the error interface for ErrUnsupportedKeyType
+// Error implements the error interface for ErrUnsupportedKeyType.
 func (e ErrUnsupportedKeyType) Error() string {
 	err := "unsupported key type"
 	if e.keyType != "" {
@@ -79,81 +83,132 @@ type SSHKeysAlreadyExistErr struct {
 // SSHKeyPair holds a pair of SSH keys and associated methods.
 type SSHKeyPair struct {
 	path       string // private key filename path; public key will have .pub appended
+	writeKeys  bool
 	passphrase []byte
+	rsaBitSize int
 	keyType    KeyType
 	privateKey crypto.PrivateKey
 }
 
 func (s SSHKeyPair) privateKeyPath() string {
-	p := fmt.Sprintf("%s_%s", s.path, s.keyType)
-	return p
+	return s.path
 }
 
 func (s SSHKeyPair) publicKeyPath() string {
 	return s.privateKeyPath() + ".pub"
 }
 
+// Option is a functional option for SSHKeyPair.
+type Option func(*SSHKeyPair)
+
+// WithPassphrase sets the passphrase for the private key.
+func WithPassphrase(passphrase string) Option {
+	return func(s *SSHKeyPair) {
+		s.passphrase = []byte(passphrase)
+	}
+}
+
+// WithKeyType sets the key type for the key pair.
+// Available key types are RSA, Ed25519, and ECDSA.
+func WithKeyType(keyType KeyType) Option {
+	return func(s *SSHKeyPair) {
+		s.keyType = keyType
+	}
+}
+
+// WithBitSize sets the key size for the RSA key pair.
+// This option is ignored for other key types.
+func WithBitSize(bits int) Option {
+	return func(s *SSHKeyPair) {
+		s.rsaBitSize = bits
+	}
+}
+
+// WithWrite writes the key pair to disk if it doesn't exist.
+func WithWrite() Option {
+	return func(s *SSHKeyPair) {
+		s.writeKeys = true
+	}
+}
+
 // New generates an SSHKeyPair, which contains a pair of SSH keys.
-func New(path string, passphrase []byte, keyType KeyType) (*SSHKeyPair, error) {
+//
+// If the key pair already exists, it will be loaded from disk, otherwise, a
+// new SSH key pair is generated.
+// If no key type is specified, Ed25519 will be used.
+func New(path string, opts ...Option) (*SSHKeyPair, error) {
 	var err error
+	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
+		path = strings.TrimSuffix(path, "_"+kt.String())
+	}
+
 	s := &SSHKeyPair{
 		path:       path,
-		keyType:    keyType,
-		passphrase: passphrase,
+		rsaBitSize: rsaDefaultBits,
+		keyType:    Ed25519,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
 	if s.KeyPairExists() {
 		privData, err := ioutil.ReadFile(s.privateKeyPath())
 		if err != nil {
 			return nil, err
 		}
+
 		var k interface{}
-		if len(passphrase) > 0 {
-			k, err = ssh.ParseRawPrivateKeyWithPassphrase(privData, passphrase)
+		if len(s.passphrase) > 0 {
+			k, err = ssh.ParseRawPrivateKeyWithPassphrase(privData, s.passphrase)
 		} else {
 			k, err = ssh.ParseRawPrivateKey(privData)
 		}
+
 		if err != nil {
 			return nil, err
 		}
+
 		switch k := k.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, *ed25519.PrivateKey:
+		case *rsa.PrivateKey:
+			s.keyType = RSA
+			s.privateKey = k
+		case *ecdsa.PrivateKey:
+			s.keyType = ECDSA
+			s.privateKey = k
+		case *ed25519.PrivateKey:
+			s.keyType = Ed25519
 			s.privateKey = k
 		default:
 			return nil, ErrUnsupportedKeyType{fmt.Sprintf("%T", k)}
 		}
+
 		return s, nil
 	}
-	switch keyType {
+
+	switch s.keyType {
 	case Ed25519:
 		err = s.generateEd25519Keys()
 	case RSA:
-		err = s.generateRSAKeys(rsaDefaultBits)
+		err = s.generateRSAKeys(s.rsaBitSize)
 	case ECDSA:
 		err = s.generateECDSAKeys(elliptic.P384())
 	default:
-		return nil, ErrUnsupportedKeyType{string(keyType)}
+		return nil, ErrUnsupportedKeyType{string(s.keyType)}
 	}
+
 	if err != nil {
 		return nil, err
 	}
+
+	if s.writeKeys {
+		return s, s.WriteKeys()
+	}
+
 	return s, nil
 }
 
-// NewWithWrite generates an SSHKeyPair and writes it to disk if not exist.
-func NewWithWrite(path string, passphrase []byte, keyType KeyType) (*SSHKeyPair, error) {
-	s, err := New(path, passphrase, keyType)
-	if err != nil {
-		return nil, err
-	}
-	if !s.KeyPairExists() {
-		if err = s.WriteKeys(); err != nil {
-			return nil, err
-		}
-	}
-	return s, nil
-}
-
-// PrivateKey returns the unencrypted private key.
+// PrivateKey returns the unencrypted crypto.PrivateKey.
 func (s *SSHKeyPair) PrivateKey() crypto.PrivateKey {
 	switch s.keyType {
 	case RSA, Ed25519, ECDSA:
@@ -163,49 +218,103 @@ func (s *SSHKeyPair) PrivateKey() crypto.PrivateKey {
 	}
 }
 
-// PrivateKeyPEM returns the unencrypted private key in OPENSSH PEM format.
-func (s *SSHKeyPair) PrivateKeyPEM() []byte {
-	block, err := s.pemBlock(nil)
+// PublicKey returns the ssh.PublicKey for the key pair.
+func (s *SSHKeyPair) PublicKey() ssh.PublicKey {
+	p, err := ssh.NewPublicKey(s.cryptoPublicKey())
 	if err != nil {
 		return nil
 	}
-	return pem.EncodeToMemory(block)
+	return p
 }
 
-// PublicKey returns the SSH public key (RFC 4253). Ready to be used in an
-// OpenSSH authorized_keys file.
-func (s *SSHKeyPair) PublicKey() []byte {
-	var pk crypto.PublicKey
-	// Prepare public key
+func (s *SSHKeyPair) cryptoPublicKey() crypto.PublicKey {
 	switch s.keyType {
 	case RSA:
 		key, ok := s.privateKey.(*rsa.PrivateKey)
 		if !ok {
 			return nil
 		}
-		pk = key.Public()
+		return key.Public()
 	case Ed25519:
 		key, ok := s.privateKey.(*ed25519.PrivateKey)
 		if !ok {
 			return nil
 		}
-		pk = key.Public()
+		return key.Public()
 	case ECDSA:
 		key, ok := s.privateKey.(*ecdsa.PrivateKey)
 		if !ok {
 			return nil
 		}
-		pk = key.Public()
+		return key.Public()
 	default:
 		return nil
 	}
-	p, err := ssh.NewPublicKey(pk)
+}
+
+// CryptoPublicKey returns the crypto.PublicKey of the SSH key pair.
+func (s *SSHKeyPair) CryptoPublicKey() crypto.PublicKey {
+	return s.cryptoPublicKey()
+}
+
+// RawAuthorizedKey returns the underlying SSH public key (RFC 4253) in OpenSSH
+// authorized_keys format.
+func (s *SSHKeyPair) RawAuthorizedKey() []byte {
+	bts, err := os.ReadFile(s.publicKeyPath())
+	if err != nil {
+		return []byte(s.AuthorizedKey())
+	}
+
+	_, c, opts, _, err := ssh.ParseAuthorizedKey(bts)
+	if err != nil {
+		return []byte(s.AuthorizedKey())
+	}
+
+	ak := s.authorizedKey(s.PublicKey())
+	if len(opts) > 0 {
+		ak = fmt.Sprintf("%s %s", strings.Join(opts, ","), ak)
+	}
+
+	if c != "" {
+		ak = fmt.Sprintf("%s %s", ak, c)
+	}
+
+	return []byte(ak)
+}
+
+func (s *SSHKeyPair) authorizedKey(pk ssh.PublicKey) string {
+	if pk == nil {
+		return ""
+	}
+
+	// serialize authorized key
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(pk)))
+}
+
+// AuthorizedKey returns the SSH public key (RFC 4253) in OpenSSH authorized_keys
+// format. The returned string is trimmed of sshd options and comments.
+func (s *SSHKeyPair) AuthorizedKey() string {
+	return s.authorizedKey(s.PublicKey())
+}
+
+// RawPrivateKey returns the raw unencrypted private key bytes in PEM format.
+func (s *SSHKeyPair) RawPrivateKey() []byte {
+	return s.rawPrivateKey(nil)
+}
+
+// RawProtectedPrivateKey returns the raw password protected private key bytes
+// in PEM format.
+func (s *SSHKeyPair) RawProtectedPrivateKey() []byte {
+	return s.rawPrivateKey(s.passphrase)
+}
+
+func (s *SSHKeyPair) rawPrivateKey(pass []byte) []byte {
+	block, err := s.pemBlock(pass)
 	if err != nil {
 		return nil
 	}
-	// serialize public key
-	ak := ssh.MarshalAuthorizedKey(p)
-	return pubKeyWithMemo(ak)
+
+	return pem.EncodeToMemory(block)
 }
 
 func (s *SSHKeyPair) pemBlock(passphrase []byte) (*pem.Block, error) {
@@ -273,7 +382,7 @@ func (s *SSHKeyPair) prepFilesystem() error {
 
 	keyDir := filepath.Dir(s.path)
 	if keyDir != "" {
-		keyDir, err = homedir.Expand(keyDir)
+		keyDir, err = filepath.Abs(keyDir)
 		if err != nil {
 			return err
 		}
@@ -314,20 +423,11 @@ func (s *SSHKeyPair) prepFilesystem() error {
 // WriteKeys writes the SSH key pair to disk.
 func (s *SSHKeyPair) WriteKeys() error {
 	var err error
-	priv := s.PrivateKeyPEM()
-	pub := s.PublicKey()
-	if priv == nil || pub == nil {
+	priv := s.RawProtectedPrivateKey()
+	if priv == nil {
 		return ErrMissingSSHKeys
 	}
 
-	// Encrypt private key with passphrase
-	if len(s.passphrase) > 0 {
-		block, err := s.pemBlock(s.passphrase)
-		if err != nil {
-			return err
-		}
-		priv = pem.EncodeToMemory(block)
-	}
 	if err = s.prepFilesystem(); err != nil {
 		return err
 	}
@@ -335,7 +435,12 @@ func (s *SSHKeyPair) WriteKeys() error {
 	if err := writeKeyToFile(priv, s.privateKeyPath()); err != nil {
 		return err
 	}
-	if err := writeKeyToFile(pub, s.publicKeyPath()); err != nil {
+
+	ak := s.AuthorizedKey()
+	if memo := pubKeyMemo(); memo != "" {
+		ak = fmt.Sprintf("%s %s", ak, memo)
+	}
+	if err := writeKeyToFile([]byte(ak), s.publicKeyPath()); err != nil {
 		return err
 	}
 
@@ -367,17 +472,17 @@ func fileExists(path string) bool {
 
 // attaches a user@host suffix to a serialized public key. returns the original
 // pubkey if we can't get the username or host.
-func pubKeyWithMemo(pubKey []byte) []byte {
+func pubKeyMemo() string {
 	u, err := user.Current()
 	if err != nil {
-		return pubKey
+		return ""
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
-		return pubKey
+		return ""
 	}
 
-	return append(bytes.TrimRight(pubKey, "\n"), []byte(fmt.Sprintf(" %s@%s\n", u.Username, hostname))...)
+	return fmt.Sprintf("%s@%s\n", u.Username, hostname)
 }
 
 // Error returns the a human-readable error message for SSHKeysAlreadyExistErr.
