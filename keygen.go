@@ -241,6 +241,15 @@ func (s *SSHKeyPair) PrivateKey() crypto.PrivateKey {
 	}
 }
 
+// Ensure that SSHKeyPair implements crypto.Signer.
+// This is used to ensure that the private key is a valid crypto.Signer to be
+// passed to ssh.NewSignerFromKey.
+var (
+	_ crypto.Signer = (*rsa.PrivateKey)(nil)
+	_ crypto.Signer = (*ecdsa.PrivateKey)(nil)
+	_ crypto.Signer = (*ed25519.PrivateKey)(nil)
+)
+
 // Signer returns an ssh.Signer for the key pair.
 func (s *SSHKeyPair) Signer() ssh.Signer {
 	sk, _ := ssh.NewSignerFromKey(s.PrivateKey())
