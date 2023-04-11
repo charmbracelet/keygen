@@ -3,6 +3,7 @@ package keygen
 import (
 	"bytes"
 	"crypto/elliptic"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,6 +17,38 @@ func TestNewSSHKeyPair(t *testing.T) {
 	}
 	if kp.keyType != Ed25519 {
 		t.Errorf("expected default key type to be Ed25519, got %s", kp.keyType)
+	}
+}
+
+func TestNilSSHKeyPair(t *testing.T) {
+	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
+		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
+			kp, err := New("", WithKeyType(kt))
+			if err != nil {
+				t.Errorf("error creating SSH key pair: %v", err)
+			}
+			if kp == nil {
+				t.Error("expected key pair to be non-nil")
+			}
+			if kp.PrivateKey() == nil {
+				t.Error("expected private key to be non-nil")
+			}
+			if kp.PublicKey() == nil {
+				t.Error("expected public key to be non-nil")
+			}
+			if kp.RawPrivateKey() == nil {
+				t.Error("expected raw private key to be non-nil")
+			}
+			if kp.RawProtectedPrivateKey() == nil {
+				t.Error("expected raw protected private key to be non-nil")
+			}
+			if kp.AuthorizedKey() == "" {
+				t.Error("expected authorized key to be non-nil")
+			}
+			if kp.Signer() == nil {
+				t.Error("expected signer to be non-nil")
+			}
+		})
 	}
 }
 
