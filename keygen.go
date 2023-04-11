@@ -45,6 +45,7 @@ var ErrMissingSSHKeys = errors.New("missing one or more keys; did something happ
 // ErrUnsupportedKeyType indicates an unsupported key type.
 type ErrUnsupportedKeyType struct {
 	keyType string
+	ecName  string
 }
 
 // Error implements the error interface for ErrUnsupportedKeyType.
@@ -52,6 +53,9 @@ func (e ErrUnsupportedKeyType) Error() string {
 	err := "unsupported key type"
 	if e.keyType != "" {
 		err += fmt.Sprintf(": %s", e.keyType)
+	}
+	if e.ecName != "" {
+		err += fmt.Sprintf(" (ECDSA curve: %s)", e.ecName)
 	}
 	return err
 }
@@ -86,6 +90,7 @@ type SSHKeyPair struct {
 	writeKeys  bool
 	passphrase []byte
 	rsaBitSize int
+	ec         elliptic.Curve
 	keyType    KeyType
 	privateKey crypto.PrivateKey
 }
@@ -131,6 +136,16 @@ func WithWrite() Option {
 	}
 }
 
+// WithEllipticCurve sets the elliptic curve for the ECDSA key pair.
+// Supported curves are P-256, P-384, and P-521.
+// The default curve is P-384.
+// This option is ignored for other key types.
+func WithEllipticCurve(curve elliptic.Curve) Option {
+	return func(s *SSHKeyPair) {
+		s.ec = curve
+	}
+}
+
 // New generates an SSHKeyPair, which contains a pair of SSH keys.
 //
 // If the key pair already exists, it will be loaded from disk, otherwise, a
@@ -145,11 +160,19 @@ func New(path string, opts ...Option) (*SSHKeyPair, error) {
 	s := &SSHKeyPair{
 		path:       path,
 		rsaBitSize: rsaDefaultBits,
+		ec:         elliptic.P384(),
 		keyType:    Ed25519,
 	}
 
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	ecName := s.ec.Params().Name
+	switch ecName {
+	case "P-256", "P-384", "P-521":
+	default:
+		return nil, ErrUnsupportedKeyType{keyType: ecName, ecName: ecName}
 	}
 
 	if s.KeyPairExists() {
@@ -180,7 +203,7 @@ func New(path string, opts ...Option) (*SSHKeyPair, error) {
 			s.keyType = Ed25519
 			s.privateKey = k
 		default:
-			return nil, ErrUnsupportedKeyType{fmt.Sprintf("%T", k)}
+			return nil, ErrUnsupportedKeyType{keyType: fmt.Sprintf("%T", k)}
 		}
 
 		return s, nil
@@ -192,9 +215,9 @@ func New(path string, opts ...Option) (*SSHKeyPair, error) {
 	case RSA:
 		err = s.generateRSAKeys(s.rsaBitSize)
 	case ECDSA:
-		err = s.generateECDSAKeys(elliptic.P384())
+		err = s.generateECDSAKeys(s.ec)
 	default:
-		return nil, ErrUnsupportedKeyType{string(s.keyType)}
+		return nil, ErrUnsupportedKeyType{keyType: string(s.keyType)}
 	}
 
 	if err != nil {
@@ -332,7 +355,7 @@ func (s *SSHKeyPair) pemBlock(passphrase []byte) (*pem.Block, error) {
 		}
 		return sshmarshal.MarshalPrivateKey(key, "")
 	default:
-		return nil, ErrUnsupportedKeyType{string(s.keyType)}
+		return nil, ErrUnsupportedKeyType{keyType: s.keyType.String()}
 	}
 }
 

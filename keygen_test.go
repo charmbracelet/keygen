@@ -126,10 +126,11 @@ func TestGenerateECDSAKeys(t *testing.T) {
 	k := &SSHKeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: ECDSA,
+		ec:      elliptic.P384(),
 	}
 
 	t.Run("test generate SSH keys", func(t *testing.T) {
-		err := k.generateECDSAKeys(elliptic.P384())
+		err := k.generateECDSAKeys(k.ec)
 		if err != nil {
 			t.Errorf("error creating SSH key pair: %v", err)
 		}
