@@ -153,10 +153,6 @@ func WithEllipticCurve(curve elliptic.Curve) Option {
 // If no key type is specified, Ed25519 will be used.
 func New(path string, opts ...Option) (*SSHKeyPair, error) {
 	var err error
-	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
-		path = strings.TrimSuffix(path, "_"+kt.String())
-	}
-
 	s := &SSHKeyPair{
 		path:       path,
 		rsaBitSize: rsaDefaultBits,

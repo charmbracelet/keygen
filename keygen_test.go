@@ -72,7 +72,7 @@ func TestNilSSHKeyPairWithPassphrase(t *testing.T) {
 func TestNilSSHKeyPairTestdata(t *testing.T) {
 	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
 		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
-			kp, err := New(filepath.Join("testdata", "test_"+kt.String()), WithKeyType(kt))
+			kp, err := New(filepath.Join("testdata", "test_"+kt.String()), WithPassphrase("test"), WithKeyType(kt))
 			if err != nil {
 				t.Errorf("error creating SSH key pair: %v", err)
 			}
@@ -315,5 +315,24 @@ func TestReadingKeyWithPassphrase(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error reading SSH key pair: %v", err)
 		}
+	}
+}
+
+func TestKeynameSuffix(t *testing.T) {
+	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
+		t.Run("test keyname suffix", func(t *testing.T) {
+			fp := filepath.Join(t.TempDir(), "testkey_"+keyType.String())
+			_, err := New(fp, WithKeyType(keyType), WithWrite())
+			if err != nil {
+				t.Fatalf("error creating SSH key pair: %v", err)
+			}
+			if _, err := os.Stat(fp); os.IsNotExist(err) {
+				t.Errorf("private key file %s does not exist", fp)
+			}
+			t.Cleanup(func() {
+				os.Remove(fp)
+				os.Remove(fp + ".pub")
+			})
+		})
 	}
 }
