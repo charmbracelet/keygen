@@ -20,6 +20,31 @@ func TestNewSSHKeyPair(t *testing.T) {
 	}
 }
 
+func nilTest(t testing.TB, kp *SSHKeyPair) {
+	t.Helper()
+	if kp == nil {
+		t.Error("expected key pair to be non-nil")
+	}
+	if kp.PrivateKey() == nil {
+		t.Error("expected private key to be non-nil")
+	}
+	if kp.PublicKey() == nil {
+		t.Error("expected public key to be non-nil")
+	}
+	if kp.RawPrivateKey() == nil {
+		t.Error("expected raw private key to be non-nil")
+	}
+	if kp.RawProtectedPrivateKey() == nil {
+		t.Error("expected raw protected private key to be non-nil")
+	}
+	if kp.AuthorizedKey() == "" {
+		t.Error("expected authorized key to be non-nil")
+	}
+	if kp.Signer() == nil {
+		t.Error("expected signer to be non-nil")
+	}
+}
+
 func TestNilSSHKeyPair(t *testing.T) {
 	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
 		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
@@ -27,28 +52,43 @@ func TestNilSSHKeyPair(t *testing.T) {
 			if err != nil {
 				t.Errorf("error creating SSH key pair: %v", err)
 			}
-			if kp == nil {
-				t.Error("expected key pair to be non-nil")
-			}
-			if kp.PrivateKey() == nil {
-				t.Error("expected private key to be non-nil")
-			}
-			if kp.PublicKey() == nil {
-				t.Error("expected public key to be non-nil")
-			}
-			if kp.RawPrivateKey() == nil {
-				t.Error("expected raw private key to be non-nil")
-			}
-			if kp.RawProtectedPrivateKey() == nil {
-				t.Error("expected raw protected private key to be non-nil")
-			}
-			if kp.AuthorizedKey() == "" {
-				t.Error("expected authorized key to be non-nil")
-			}
-			if kp.Signer() == nil {
-				t.Error("expected signer to be non-nil")
-			}
+			nilTest(t, kp)
 		})
+	}
+}
+
+func TestNilSSHKeyPairWithPassphrase(t *testing.T) {
+	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
+		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
+			kp, err := New("", WithKeyType(kt), WithPassphrase("test"))
+			if err != nil {
+				t.Errorf("error creating SSH key pair: %v", err)
+			}
+			nilTest(t, kp)
+		})
+	}
+}
+
+func TestNilSSHKeyPairTestdata(t *testing.T) {
+	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
+		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
+			kp, err := New(filepath.Join("testdata", "test_"+kt.String()), WithKeyType(kt))
+			if err != nil {
+				t.Errorf("error creating SSH key pair: %v", err)
+			}
+			nilTest(t, kp)
+		})
+	}
+}
+
+func TestUnsupportedCurve(t *testing.T) {
+	_, err := New("", WithKeyType(ECDSA), WithEllipticCurve(elliptic.P224()))
+	if err == nil {
+		t.Error("expected error for unsupported curve")
+	}
+	_, err = New("", WithKeyType(ECDSA), WithEllipticCurve(elliptic.P256()))
+	if err != nil {
+		t.Errorf("expected no error for supported curve, got %v", err)
 	}
 }
 
@@ -209,13 +249,13 @@ func createEmptyFile(t *testing.T, path string) (ok bool) {
 
 func TestGeneratePublicKeyWithEmptyDir(t *testing.T) {
 	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
-		func(t *testing.T) {
-			fn := "testkey"
-			k, err := New(fn, WithKeyType(keyType), WithWrite())
+		t.Run("test generate public key with empty dir", func(t *testing.T) {
+			fp := filepath.Join(t.TempDir(), "testkey")
+			k, err := New(fp, WithKeyType(keyType), WithWrite())
 			if err != nil {
 				t.Fatalf("error creating SSH key pair: %v", err)
 			}
-			f, err := os.Open(fn + ".pub")
+			f, err := os.Open(fp + ".pub")
 			if err != nil {
 				t.Fatalf("error opening SSH key file: %v", err)
 			}
@@ -224,25 +264,27 @@ func TestGeneratePublicKeyWithEmptyDir(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error reading SSH key file: %v", err)
 			}
-			defer os.Remove(fn)
-			defer os.Remove(fn + ".pub")
 			if bytes.Equal(k.RawAuthorizedKey(), fc) {
 				t.Errorf("error key mismatch\nprivate key:\n%s\n\nactual file:\n%s", k.PrivateKey(), string(fc))
 			}
-		}(t)
+			t.Cleanup(func() {
+				os.Remove(fp)
+				os.Remove(fp + ".pub")
+			})
+		})
 	}
 }
 
 func TestGenerateKeyWithPassphrase(t *testing.T) {
+	ph := "testpass"
 	for _, keyType := range []KeyType{RSA, ECDSA, Ed25519} {
-		ph := "testpass"
-		func(t *testing.T) {
-			_, err := New("testph", WithKeyType(keyType), WithPassphrase(ph), WithWrite())
+		t.Run("test generate key with passphrase", func(t *testing.T) {
+			fp := filepath.Join(t.TempDir(), "testph")
+			_, err := New(fp, WithKeyType(keyType), WithPassphrase(ph), WithWrite())
 			if err != nil {
 				t.Fatalf("error creating SSH key pair: %v", err)
 			}
-			fn := "testph"
-			f, err := os.Open(fn)
+			f, err := os.Open(fp)
 			if err != nil {
 				t.Fatalf("error opening SSH key file: %v", err)
 			}
@@ -251,16 +293,18 @@ func TestGenerateKeyWithPassphrase(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error reading SSH key file: %v", err)
 			}
-			defer os.Remove(fn)
-			defer os.Remove(fn + ".pub")
-			k, err := New("testph", WithKeyType(keyType), WithPassphrase(ph))
+			k, err := New(fp, WithKeyType(keyType), WithPassphrase(ph))
 			if err != nil {
 				t.Fatalf("error reading SSH key pair: %v", err)
 			}
 			if bytes.Equal(k.RawPrivateKey(), fc) {
 				t.Errorf("encrypted private key matches file contents")
 			}
-		}(t)
+			t.Cleanup(func() {
+				os.Remove(fp)
+				os.Remove(fp + ".pub")
+			})
+		})
 	}
 }
 
