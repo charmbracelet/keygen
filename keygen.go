@@ -218,12 +218,15 @@ func (s *SSHKeyPair) PrivateKey() crypto.PrivateKey {
 	}
 }
 
+// Signer returns an ssh.Signer for the key pair.
+func (s *SSHKeyPair) Signer() ssh.Signer {
+	sk, _ := ssh.NewSignerFromKey(s.PrivateKey())
+	return sk
+}
+
 // PublicKey returns the ssh.PublicKey for the key pair.
 func (s *SSHKeyPair) PublicKey() ssh.PublicKey {
-	p, err := ssh.NewPublicKey(s.cryptoPublicKey())
-	if err != nil {
-		return nil
-	}
+	p, _ := ssh.NewPublicKey(s.cryptoPublicKey())
 	return p
 }
 
