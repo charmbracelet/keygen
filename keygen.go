@@ -154,7 +154,7 @@ func WithEllipticCurve(curve elliptic.Curve) Option {
 func New(path string, opts ...Option) (*SSHKeyPair, error) {
 	var err error
 	s := &SSHKeyPair{
-		path:       path,
+		path:       expandPath(path),
 		rsaBitSize: rsaDefaultBits,
 		ec:         elliptic.P384(),
 		keyType:    Ed25519,
@@ -499,6 +499,20 @@ func fileExists(path string) bool {
 		return false
 	}
 	return true
+}
+
+// expandPath resolves the tilde `~` and any environment variables in path.
+func expandPath(path string) string {
+	if len(path) > 0 && path[0] == '~' {
+		userdir, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+
+		path = filepath.Join(userdir, path[1:])
+	}
+
+	return os.ExpandEnv(path)
 }
 
 // attaches a user@host suffix to a serialized public key. returns the original
