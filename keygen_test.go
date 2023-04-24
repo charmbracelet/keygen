@@ -336,3 +336,24 @@ func TestKeynameSuffix(t *testing.T) {
 		})
 	}
 }
+
+func TestExpandPath(t *testing.T) {
+	tmpdir := t.TempDir()
+	os.Setenv("TEMP", tmpdir)
+	defer os.Unsetenv("TEMP")
+
+	// Test environment variable expansion
+	if fp := expandPath(filepath.Join("$TEMP", "testkey")); fp != filepath.Join(tmpdir, "testkey") {
+		t.Errorf("error expanding path: %s", fp)
+	}
+
+	// Test tilde expansion
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("error getting user home directory: %v", err)
+	}
+
+	if fp := expandPath(filepath.Join("~", "testkey")); fp != filepath.Join(homedir, "testkey") {
+		t.Errorf("error expanding path: %s", fp)
+	}
+}
