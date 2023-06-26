@@ -480,7 +480,7 @@ func (s *SSHKeyPair) WriteKeys() error {
 
 // KeyPairExists checks if the SSH key pair exists on disk.
 func (s *SSHKeyPair) KeyPairExists() bool {
-	return fileExists(s.privateKeyPath()) && fileExists(s.publicKeyPath())
+	return fileExists(s.privateKeyPath())
 }
 
 func writeKeyToFile(keyBytes []byte, path string) error {
