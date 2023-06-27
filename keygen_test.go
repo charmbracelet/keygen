@@ -20,7 +20,7 @@ func TestNewSSHKeyPair(t *testing.T) {
 	}
 }
 
-func nilTest(t testing.TB, kp *SSHKeyPair) {
+func nilTest(t testing.TB, kp *KeyPair) {
 	t.Helper()
 	if kp == nil {
 		t.Error("expected key pair to be non-nil")
@@ -97,7 +97,7 @@ func TestGenerateEd25519Keys(t *testing.T) {
 	dir := t.TempDir()
 	filename := "test"
 
-	k := &SSHKeyPair{
+	k := &KeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: Ed25519,
 	}
@@ -163,7 +163,7 @@ func TestGenerateECDSAKeys(t *testing.T) {
 	dir := t.TempDir()
 	filename := "test"
 
-	k := &SSHKeyPair{
+	k := &KeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: ECDSA,
 		ec:      elliptic.P384(),
