@@ -107,7 +107,7 @@ func (s KeyPair) publicKeyPath() string {
 	return s.privateKeyPath() + ".pub"
 }
 
-// Option is a functional option for SSHKeyPair.
+// Option is a functional option for KeyPair.
 type Option func(*KeyPair)
 
 // WithPassphrase sets the passphrase for the private key.
