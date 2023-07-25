@@ -150,7 +150,7 @@ func WithEllipticCurve(curve elliptic.Curve) Option {
 	}
 }
 
-// New generates an SSHKeyPair, which contains a pair of SSH keys.
+// New generates a KeyPair, which contains a pair of SSH keys.
 //
 // If the key pair already exists, it will be loaded from disk, otherwise, a
 // new SSH key pair is generated.
@@ -241,7 +241,7 @@ func (s *KeyPair) PrivateKey() crypto.PrivateKey {
 	}
 }
 
-// Ensure that SSHKeyPair implements crypto.Signer.
+// Ensure that KeyPair implements crypto.Signer.
 // This is used to ensure that the private key is a valid crypto.Signer to be
 // passed to ssh.NewSignerFromKey.
 var (
@@ -425,7 +425,7 @@ func (s *KeyPair) prepFilesystem() error {
 		info, err := os.Stat(keyDir)
 		if os.IsNotExist(err) {
 			// Directory doesn't exist: create it
-			return os.MkdirAll(keyDir, 0700)
+			return os.MkdirAll(keyDir, 0o700)
 		}
 		if err != nil {
 			// There was another error statting the directory; something is awry
@@ -435,9 +435,9 @@ func (s *KeyPair) prepFilesystem() error {
 			// It exists but it's not a directory
 			return FilesystemErr{Err: fmt.Errorf("%s is not a directory", keyDir)}
 		}
-		if info.Mode().Perm() != 0700 {
+		if info.Mode().Perm() != 0o700 {
 			// Permissions are wrong: fix 'em
-			if err := os.Chmod(keyDir, 0700); err != nil {
+			if err := os.Chmod(keyDir, 0o700); err != nil {
 				return FilesystemErr{Err: err}
 			}
 		}
@@ -489,7 +489,7 @@ func (s *KeyPair) KeyPairExists() bool {
 
 func writeKeyToFile(keyBytes []byte, path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return ioutil.WriteFile(path, keyBytes, 0600)
+		return ioutil.WriteFile(path, keyBytes, 0o600)
 	}
 	return FilesystemErr{Err: fmt.Errorf("file %s already exists", path)}
 }
