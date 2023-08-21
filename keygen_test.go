@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestNewSSHKeyPair(t *testing.T) {
+func TestNewKeyPair(t *testing.T) {
 	kp, err := New("")
 	if err != nil {
 		t.Errorf("error creating SSH key pair: %v", err)
@@ -20,7 +20,7 @@ func TestNewSSHKeyPair(t *testing.T) {
 	}
 }
 
-func nilTest(t testing.TB, kp *SSHKeyPair) {
+func nilTest(t testing.TB, kp *KeyPair) {
 	t.Helper()
 	if kp == nil {
 		t.Error("expected key pair to be non-nil")
@@ -45,7 +45,7 @@ func nilTest(t testing.TB, kp *SSHKeyPair) {
 	}
 }
 
-func TestNilSSHKeyPair(t *testing.T) {
+func TestNilKeyPair(t *testing.T) {
 	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
 		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
 			kp, err := New("", WithKeyType(kt))
@@ -57,7 +57,7 @@ func TestNilSSHKeyPair(t *testing.T) {
 	}
 }
 
-func TestNilSSHKeyPairWithPassphrase(t *testing.T) {
+func TestNilKeyPairWithPassphrase(t *testing.T) {
 	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
 		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
 			kp, err := New("", WithKeyType(kt), WithPassphrase("test"))
@@ -69,7 +69,7 @@ func TestNilSSHKeyPairWithPassphrase(t *testing.T) {
 	}
 }
 
-func TestNilSSHKeyPairTestdata(t *testing.T) {
+func TestNilKeyPairTestdata(t *testing.T) {
 	for _, kt := range []KeyType{RSA, Ed25519, ECDSA} {
 		t.Run(fmt.Sprintf("test nil key pair for %s", kt), func(t *testing.T) {
 			kp, err := New(filepath.Join("testdata", "test_"+kt.String()), WithPassphrase("test"), WithKeyType(kt))
@@ -97,7 +97,7 @@ func TestGenerateEd25519Keys(t *testing.T) {
 	dir := t.TempDir()
 	filename := "test"
 
-	k := &SSHKeyPair{
+	k := &KeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: Ed25519,
 	}
@@ -163,7 +163,7 @@ func TestGenerateECDSAKeys(t *testing.T) {
 	dir := t.TempDir()
 	filename := "test"
 
-	k := &SSHKeyPair{
+	k := &KeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: ECDSA,
 		ec:      elliptic.P384(),
@@ -228,7 +228,7 @@ func TestGenerateECDSAKeys(t *testing.T) {
 // touchTestFile is a utility function we're using in testing.
 func createEmptyFile(t *testing.T, path string) (ok bool) {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Errorf("could not create directory %s: %v", dir, err)
 		return false
 	}
