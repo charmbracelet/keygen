@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/caarlos0/sshmarshal"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -360,9 +359,9 @@ func (s *KeyPair) pemBlock(passphrase []byte) (*pem.Block, error) {
 	switch s.keyType {
 	case RSA, Ed25519, ECDSA:
 		if len(passphrase) > 0 {
-			return sshmarshal.MarshalPrivateKeyWithPassphrase(key, "", passphrase)
+			return ssh.MarshalPrivateKeyWithPassphrase(key, "", passphrase)
 		}
-		return sshmarshal.MarshalPrivateKey(key, "")
+		return ssh.MarshalPrivateKey(key, "")
 	default:
 		return nil, ErrUnsupportedKeyType{keyType: s.keyType.String()}
 	}
