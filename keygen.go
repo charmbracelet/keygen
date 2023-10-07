@@ -474,11 +474,8 @@ func (s *KeyPair) WriteKeys() error {
 	if memo := pubKeyMemo(); memo != "" {
 		ak = fmt.Sprintf("%s %s", ak, memo)
 	}
-	if err := writeKeyToFile([]byte(ak), s.publicKeyPath()); err != nil {
-		return err
-	}
 
-	return nil
+	return writeKeyToFile([]byte(ak), s.publicKeyPath())
 }
 
 // KeyPairExists checks if the SSH key pair exists on disk.
