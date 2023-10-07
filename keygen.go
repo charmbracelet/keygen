@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -175,7 +174,7 @@ func New(path string, opts ...Option) (*KeyPair, error) {
 	}
 
 	if s.KeyPairExists() {
-		privData, err := ioutil.ReadFile(s.privateKeyPath())
+		privData, err := os.ReadFile(s.privateKeyPath())
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +487,7 @@ func (s *KeyPair) KeyPairExists() bool {
 
 func writeKeyToFile(keyBytes []byte, path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return ioutil.WriteFile(path, keyBytes, 0o600)
+		return os.WriteFile(path, keyBytes, 0o600)
 	}
 	return FilesystemErr{Err: fmt.Errorf("file %s already exists", path)}
 }

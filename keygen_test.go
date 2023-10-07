@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -260,7 +260,7 @@ func TestGeneratePublicKeyWithEmptyDir(t *testing.T) {
 				t.Fatalf("error opening SSH key file: %v", err)
 			}
 			defer f.Close()
-			fc, err := ioutil.ReadAll(f)
+			fc, err := io.ReadAll(f)
 			if err != nil {
 				t.Fatalf("error reading SSH key file: %v", err)
 			}
@@ -289,7 +289,7 @@ func TestGenerateKeyWithPassphrase(t *testing.T) {
 				t.Fatalf("error opening SSH key file: %v", err)
 			}
 			defer f.Close()
-			fc, err := ioutil.ReadAll(f)
+			fc, err := io.ReadAll(f)
 			if err != nil {
 				t.Fatalf("error reading SSH key file: %v", err)
 			}
