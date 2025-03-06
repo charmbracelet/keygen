@@ -90,6 +90,7 @@ type SSHKeyPair = KeyPair
 type KeyPair struct {
 	path       string // private key filename path; public key will have .pub appended
 	writeKeys  bool
+	fs         KeyFS
 	passphrase []byte
 	rsaBitSize int
 	ec         elliptic.Curve
@@ -138,6 +139,13 @@ func WithWrite() Option {
 	}
 }
 
+// WithFS allows to set a different KeyFS implementation.
+func WithFS(fs KeyFS) Option {
+	return func(s *KeyPair) {
+		s.fs = fs
+	}
+}
+
 // WithEllipticCurve sets the elliptic curve for the ECDSA key pair.
 // Supported curves are P-256, P-384, and P-521.
 // The default curve is P-384.
@@ -160,6 +168,7 @@ func New(path string, opts ...Option) (*KeyPair, error) {
 		rsaBitSize: rsaDefaultBits,
 		ec:         elliptic.P384(),
 		keyType:    Ed25519,
+		fs:         &RealFS{},
 	}
 
 	for _, opt := range opts {
@@ -174,7 +183,7 @@ func New(path string, opts ...Option) (*KeyPair, error) {
 	}
 
 	if s.KeyPairExists() {
-		privData, err := os.ReadFile(s.privateKeyPath())
+		privData, err := s.fs.ReadFile(s.privateKeyPath())
 		if err != nil {
 			return nil, err
 		}
@@ -420,10 +429,10 @@ func (s *KeyPair) prepFilesystem() error {
 			return err
 		}
 
-		info, err := os.Stat(keyDir)
+		info, err := s.fs.Stat(keyDir)
 		if os.IsNotExist(err) {
 			// Directory doesn't exist: create it
-			return os.MkdirAll(keyDir, 0o700)
+			return s.fs.MkdirAll(keyDir, 0o700)
 		}
 		if err != nil {
 			// There was another error statting the directory; something is awry
@@ -435,17 +444,17 @@ func (s *KeyPair) prepFilesystem() error {
 		}
 		if info.Mode().Perm() != 0o700 {
 			// Permissions are wrong: fix 'em
-			if err := os.Chmod(keyDir, 0o700); err != nil {
+			if err := s.fs.Chmod(keyDir, 0o700); err != nil {
 				return FilesystemErr{Err: err}
 			}
 		}
 	}
 
 	// Make sure the files we're going to write to don't already exist
-	if fileExists(s.privateKeyPath()) {
+	if fileExists(s.fs, s.privateKeyPath()) {
 		return SSHKeysAlreadyExistErr{Path: s.privateKeyPath()}
 	}
-	if fileExists(s.publicKeyPath()) {
+	if fileExists(s.fs, s.publicKeyPath()) {
 		return SSHKeysAlreadyExistErr{Path: s.publicKeyPath()}
 	}
 
@@ -465,7 +474,7 @@ func (s *KeyPair) WriteKeys() error {
 		return err
 	}
 
-	if err := writeKeyToFile(priv, s.privateKeyPath()); err != nil {
+	if err := writeKeyToFile(s.fs, priv, s.privateKeyPath()); err != nil {
 		return err
 	}
 
@@ -474,23 +483,23 @@ func (s *KeyPair) WriteKeys() error {
 		ak = fmt.Sprintf("%s %s", ak, memo)
 	}
 
-	return writeKeyToFile([]byte(ak), s.publicKeyPath())
+	return writeKeyToFile(s.fs, []byte(ak), s.publicKeyPath())
 }
 
 // KeyPairExists checks if the SSH key pair exists on disk.
 func (s *KeyPair) KeyPairExists() bool {
-	return fileExists(s.privateKeyPath())
+	return fileExists(s.fs, s.privateKeyPath())
 }
 
-func writeKeyToFile(keyBytes []byte, path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return os.WriteFile(path, keyBytes, 0o600)
+func writeKeyToFile(fs KeyFS, keyBytes []byte, path string) error {
+	if _, err := fs.Stat(path); os.IsNotExist(err) {
+		return fs.WriteFile(path, keyBytes, 0o600)
 	}
 	return FilesystemErr{Err: fmt.Errorf("file %s already exists", path)}
 }
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
+func fileExists(fs KeyFS, path string) bool {
+	_, err := fs.Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	}
