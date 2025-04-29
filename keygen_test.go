@@ -100,6 +100,7 @@ func TestGenerateEd25519Keys(t *testing.T) {
 	k := &KeyPair{
 		path:    filepath.Join(dir, filename),
 		keyType: Ed25519,
+		fs:      &RealFS{},
 	}
 
 	t.Run("test generate SSH keys", func(t *testing.T) {
@@ -167,6 +168,7 @@ func TestGenerateECDSAKeys(t *testing.T) {
 		path:    filepath.Join(dir, filename),
 		keyType: ECDSA,
 		ec:      elliptic.P384(),
+		fs:      &RealFS{},
 	}
 
 	t.Run("test generate SSH keys", func(t *testing.T) {
