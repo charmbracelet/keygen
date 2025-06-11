@@ -18,6 +18,12 @@ if err != nil {
 fmt.Printf("Your authorized key: %s\n", kp.AuthorizedKey())
 ```
 
+## Contributing
+
+See [contributing][contribute].
+
+[contribute]: https://github.com/charmbracelet/keygen/contribute
+
 ## Feedback
 
 We’d love to hear your thoughts on this project. Feel free to drop us a note!
