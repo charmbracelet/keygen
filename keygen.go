@@ -176,7 +176,7 @@ func New(path string, opts ...Option) (*KeyPair, error) {
 	if s.KeyPairExists() {
 		privData, err := os.ReadFile(s.privateKeyPath())
 		if err != nil {
-			return nil, err
+			return nil, err //nolint:wrapcheck
 		}
 
 		var k interface{}
@@ -187,7 +187,7 @@ func New(path string, opts ...Option) (*KeyPair, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, err //nolint:wrapcheck
 		}
 
 		switch k := k.(type) {
@@ -358,9 +358,9 @@ func (s *KeyPair) pemBlock(passphrase []byte) (*pem.Block, error) {
 	switch s.keyType {
 	case RSA, Ed25519, ECDSA:
 		if len(passphrase) > 0 {
-			return ssh.MarshalPrivateKeyWithPassphrase(key, "", passphrase)
+			return ssh.MarshalPrivateKeyWithPassphrase(key, "", passphrase) //nolint:wrapcheck
 		}
-		return ssh.MarshalPrivateKey(key, "")
+		return ssh.MarshalPrivateKey(key, "") //nolint:wrapcheck
 	default:
 		return nil, ErrUnsupportedKeyType{keyType: s.keyType.String()}
 	}
@@ -371,7 +371,7 @@ func (s *KeyPair) generateEd25519Keys() error {
 	// Generate keys
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck
 	}
 	s.privateKey = &privateKey
 
@@ -383,7 +383,7 @@ func (s *KeyPair) generateECDSAKeys(curve elliptic.Curve) error {
 	// Generate keys
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck
 	}
 	s.privateKey = privateKey
 	return nil
@@ -394,12 +394,12 @@ func (s *KeyPair) generateRSAKeys(bitSize int) error {
 	// Generate private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck
 	}
 	// Validate private key
 	err = privateKey.Validate()
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck
 	}
 	s.privateKey = privateKey
 	return nil
@@ -411,34 +411,8 @@ func (s *KeyPair) generateRSAKeys(bitSize int) error {
 // well as make sure that no files exist at the location in which we're going
 // to write out keys.
 func (s *KeyPair) prepFilesystem() error {
-	var err error
-
-	keyDir := filepath.Dir(s.path)
-	if keyDir != "" {
-		keyDir, err = filepath.Abs(keyDir)
-		if err != nil {
-			return err
-		}
-
-		info, err := os.Stat(keyDir)
-		if os.IsNotExist(err) {
-			// Directory doesn't exist: create it
-			return os.MkdirAll(keyDir, 0o700)
-		}
-		if err != nil {
-			// There was another error statting the directory; something is awry
-			return FilesystemErr{Err: err}
-		}
-		if !info.IsDir() {
-			// It exists but it's not a directory
-			return FilesystemErr{Err: fmt.Errorf("%s is not a directory", keyDir)}
-		}
-		if info.Mode().Perm() != 0o700 {
-			// Permissions are wrong: fix 'em
-			if err := os.Chmod(keyDir, 0o700); err != nil {
-				return FilesystemErr{Err: err}
-			}
-		}
+	if err := s.prepDirectory(); err != nil {
+		return err
 	}
 
 	// Make sure the files we're going to write to don't already exist
@@ -450,6 +424,39 @@ func (s *KeyPair) prepFilesystem() error {
 	}
 
 	// The directory looks good as-is
+	return nil
+}
+
+func (s *KeyPair) prepDirectory() error {
+	dir := filepath.Dir(s.path)
+	if dir == "" {
+		return nil
+	}
+
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return err //nolint:wrapcheck
+	}
+
+	info, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		// Directory doesn't exist: create it
+		return os.MkdirAll(dir, 0o700) //nolint:wrapcheck
+	}
+	if err != nil {
+		// There was another error statting the directory; something is awry
+		return FilesystemErr{Err: err}
+	}
+	if !info.IsDir() {
+		// It exists but it's not a directory
+		return FilesystemErr{Err: fmt.Errorf("%s is not a directory", dir)}
+	}
+	if info.Mode().Perm() != 0o700 {
+		// Permissions are wrong: fix 'em
+		if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec
+			return FilesystemErr{Err: err}
+		}
+	}
 	return nil
 }
 
@@ -484,7 +491,7 @@ func (s *KeyPair) KeyPairExists() bool {
 
 func writeKeyToFile(keyBytes []byte, path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return os.WriteFile(path, keyBytes, 0o600)
+		return os.WriteFile(path, keyBytes, 0o600) //nolint:wrapcheck
 	}
 	return FilesystemErr{Err: fmt.Errorf("file %s already exists", path)}
 }
