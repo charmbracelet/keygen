@@ -10,10 +10,13 @@ An SSH key pair generator with password protected keys support. Supports generat
 ## Example
 
 ```go
-kp, err := keygen.New("awesome", keygen.WithPassphrase("awesome_secret"),
-	keygen.WithKeyType(keygen.Ed25519))
+kp, err := keygen.New(
+    "awesome",
+    keygen.WithPassphrase("awesome_secret"),
+    keygen.WithKeyType(keygen.Ed25519),
+)
 if err != nil {
-	log.Fatalf("error creating SSH key pair: %v", err)
+    log.Fatalf("error creating SSH key pair: %v", err)
 }
 fmt.Printf("Your authorized key: %s\n", kp.AuthorizedKey())
 ```
