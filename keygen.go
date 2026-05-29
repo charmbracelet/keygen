@@ -378,7 +378,7 @@ func (s *KeyPair) generateEd25519Keys() error {
 	return nil
 }
 
-// generateEd25519Keys creates a pair of EdD25519 keys for SSH auth.
+// generateECDSAKeys creates a pair of ECDSA keys for SSH auth.
 func (s *KeyPair) generateECDSAKeys(curve elliptic.Curve) error {
 	// Generate keys
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -536,7 +536,7 @@ func pubKeyMemo() string {
 	return fmt.Sprintf("%s@%s\n", u.Username, hostname)
 }
 
-// Error returns the a human-readable error message for SSHKeysAlreadyExistErr.
+// Error returns a human-readable error message for SSHKeysAlreadyExistErr.
 // It satisfies the error interface.
 func (e SSHKeysAlreadyExistErr) Error() string {
 	return fmt.Sprintf("ssh key %s already exists", e.Path)
